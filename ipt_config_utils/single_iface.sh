@@ -8,7 +8,6 @@
 # Locally generated packets: OUTPUT -> POSTROUTING
 #
 
-
 QUEUE_ID=0
 
 # User definable marker values
@@ -71,6 +70,29 @@ for i in {1,2}; do
     $IPTABLES -t mangle -A OUTPUT      -p icmp --match mark --mark 0 -j NFQUEUE --queue-num $QUEUE_ID --queue-bypass
 
     ###################################################
+    
+    # ------------------------
+    # Ritardo per traffico marcato con MARK 20
+    # ------------------------
+
+    IFACE=ifb0
+
+    modprobe ifb
+    ip link set dev $IFACE up
+
+    # Redireziona il traffico in ingresso verso IFB
+    tc qdisc add dev eth0 ingress 2>/dev/null
+    tc filter add dev eth0 parent ffff: protocol ip u32 match u32 0 0 action mirred egress redirect dev $IFACE
+
+    tc qdisc add dev $IFACE root handle 1: htb default 30 2>/dev/null
+
+    tc class add dev $IFACE parent 1: classid 1:20 htb rate 100kbps ceil 100kbps
+
+    tc qdisc add dev $IFACE parent 1:20 handle 20: netem delay 200ms
+
+    tc filter add dev $IFACE parent 1: protocol ip prio 1 handle 20 fw flowid 1:20
+
+    # ------------------------
 
     # Show all
     $IPTABLES -nvL -t mangle
