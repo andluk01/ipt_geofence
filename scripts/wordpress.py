@@ -14,7 +14,6 @@ if(len(sys.argv) != 2):
     print("Usage: wordpress.py <filename>")
     exit(0)
 
-
 filename = sys.argv[1]
 
 debug = False
@@ -50,6 +49,8 @@ def inc_hit(c, ip, threshold, what):
         if(debug):
             print("[" + what + "] " + ip + " = " + str(c[ip]['hits']))
 
+        # Applica un mark per il traffic shaping (ritardo)
+        subprocess.call(["iptables", "-A", "INPUT", "-s", ip, "-j", "MARK", "--set-mark", "20"])
         hit_found(ip)
 
         # Once we block an ip we delete it from the cache and start over
@@ -89,8 +90,6 @@ try:
         harvest(failure_cache, now)
 
         if(("/wp-login" in line) or ("/wp-admin" in line) or ("/wp-config" in line)):
-            #  1.2.3.4 - - [09/Jan/2023:14:03:02 +0100] "GET /wp-admin/ HTTP/1.1" 401 583
-            #print(line)
             hit_found(ip)
 
         elif(ret_code == "403"):
@@ -102,7 +101,6 @@ try:
         elif(ret_code == "200"):
             dec_hit(failure_cache, ip)
             dec_hit(redirect_cache, ip)
-
 
 except:
     print("")
